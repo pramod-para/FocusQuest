@@ -42,13 +42,72 @@ struct RoutineGoal: Identifiable, Codable, Hashable {
     }
 }
 
+struct GoalScheduleTime: Codable, Hashable {
+    var hour: Int
+    var minute: Int
+
+    init(hour: Int, minute: Int) {
+        self.hour = hour
+        self.minute = minute
+    }
+
+    init(date: Date) {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        hour = components.hour ?? 0
+        minute = components.minute ?? 0
+    }
+
+    var date: Date {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: .now) ?? .now
+    }
+}
+
+struct RoutinePreferences: Codable {
+    var scheduleOverrides: [String: GoalScheduleTime] = [:]
+    var modifiedAt: Date = .distantPast
+}
+
 struct DayRecord: Identifiable, Codable {
     var id: String
     var completedGoalIDs: Set<String> = []
+    var completionTimes: [String: Date] = [:]
     var waterOunces: Int = 0
     var focusSessions: Int = 0
     var importedSteps: Int = 0
     var modifiedAt: Date = .now
+
+    init(
+        id: String,
+        completedGoalIDs: Set<String> = [],
+        completionTimes: [String: Date] = [:],
+        waterOunces: Int = 0,
+        focusSessions: Int = 0,
+        importedSteps: Int = 0,
+        modifiedAt: Date = .now
+    ) {
+        self.id = id
+        self.completedGoalIDs = completedGoalIDs
+        self.completionTimes = completionTimes
+        self.waterOunces = waterOunces
+        self.focusSessions = focusSessions
+        self.importedSteps = importedSteps
+        self.modifiedAt = modifiedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, completedGoalIDs, completionTimes, waterOunces, focusSessions, importedSteps, modifiedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        completedGoalIDs = try values.decodeIfPresent(Set<String>.self, forKey: .completedGoalIDs) ?? []
+        completionTimes = try values.decodeIfPresent([String: Date].self, forKey: .completionTimes) ?? [:]
+        waterOunces = try values.decodeIfPresent(Int.self, forKey: .waterOunces) ?? 0
+        focusSessions = try values.decodeIfPresent(Int.self, forKey: .focusSessions) ?? 0
+        importedSteps = try values.decodeIfPresent(Int.self, forKey: .importedSteps) ?? 0
+        modifiedAt = try values.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? .distantPast
+    }
 }
 
 enum RoutinePlan {

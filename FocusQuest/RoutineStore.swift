@@ -5,10 +5,12 @@ import CloudKit
 @MainActor
 final class RoutineStore: ObservableObject {
     @Published private(set) var records: [String: DayRecord] = [:]
+    @Published private(set) var preferences = RoutinePreferences()
     @Published var notificationsEnabled = false
     @Published private(set) var notificationTestStatus = ""
     @Published private(set) var iCloudStatus = "Checking iCloud…"
     private let defaultsKey = "focusquest.records.v1"
+    private let preferencesKey = "focusquest.preferences.v1"
     #if FOCUSQUEST_LOCAL_ONLY
     private let database: CKDatabase? = nil
     #else
@@ -46,16 +48,39 @@ final class RoutineStore: ObservableObject {
     }
 
     func isComplete(_ goal: RoutineGoal) -> Bool { today.completedGoalIDs.contains(goal.id) }
+    func completedAt(_ goal: RoutineGoal) -> Date? { today.completionTimes[goal.id] }
+    func scheduledTime(for goal: RoutineGoal) -> Date {
+        (preferences.scheduleOverrides[goal.id] ?? GoalScheduleTime(hour: goal.hour, minute: goal.minute)).date
+    }
 
     func toggle(_ goal: RoutineGoal) {
         mutateToday { record in
-            if record.completedGoalIDs.contains(goal.id) { record.completedGoalIDs.remove(goal.id) }
-            else { record.completedGoalIDs.insert(goal.id) }
+            if record.completedGoalIDs.contains(goal.id) {
+                record.completedGoalIDs.remove(goal.id)
+                record.completionTimes.removeValue(forKey: goal.id)
+            } else {
+                record.completedGoalIDs.insert(goal.id)
+                record.completionTimes[goal.id] = .now
+            }
         }
     }
 
     func addWater(_ ounces: Int) { mutateToday { $0.waterOunces = max(0, $0.waterOunces + ounces) } }
+    func resetWater() { mutateToday { $0.waterOunces = 0 } }
     func addFocusSession() { mutateToday { $0.focusSessions += 1 } }
+
+    func updateTime(_ date: Date, for goal: RoutineGoal) {
+        preferences.scheduleOverrides[goal.id] = GoalScheduleTime(date: date)
+        preferences.modifiedAt = .now
+        savePreferencesLocal()
+        Task {
+            await uploadPreferences()
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
+                await scheduleNotifications()
+            }
+        }
+    }
 
     func syncWithICloud() async {
         guard let database else {
@@ -78,6 +103,7 @@ final class RoutineStore: ObservableObject {
                     records[decoded.id] = decoded
                 }
             }
+            await downloadPreferences(from: database)
             saveLocal()
             iCloudStatus = "Synced with private iCloud"
         } catch {
@@ -95,7 +121,7 @@ final class RoutineStore: ObservableObject {
             (goal, recent.filter { !$0.completedGoalIDs.contains(goal.id) }.count)
         }.max { $0.1 < $1.1 }
         if let missed, missed.1 > 0 {
-            return "Your best improvement opportunity is “\(missed.0.title).” Make it easier: prepare the environment five minutes before \(missed.0.time.formatted(date: .omitted, time: .shortened))."
+            return "Your best improvement opportunity is “\(missed.0.title).” Make it easier: prepare the environment five minutes before \(scheduledTime(for: missed.0).formatted(date: .omitted, time: .shortened))."
         }
         return "Your routine is consistent. Protect sleep and increase difficulty gradually—not all at once."
     }
@@ -143,7 +169,8 @@ final class RoutineStore: ObservableObject {
             content.sound = .default
             content.interruptionLevel = .active
             content.threadIdentifier = "daily-routine"
-            let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: goal.hour, minute: goal.minute), repeats: true)
+            let time = preferences.scheduleOverrides[goal.id] ?? GoalScheduleTime(hour: goal.hour, minute: goal.minute)
+            let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: time.hour, minute: time.minute), repeats: true)
             try? await center.add(UNNotificationRequest(identifier: goal.id, content: content, trigger: trigger))
         }
     }
@@ -158,14 +185,24 @@ final class RoutineStore: ObservableObject {
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
-              let value = try? JSONDecoder().decode([String: DayRecord].self, from: data) else { return }
-        records = value
+        if let data = UserDefaults.standard.data(forKey: defaultsKey),
+           let value = try? JSONDecoder().decode([String: DayRecord].self, from: data) {
+            records = value
+        }
+        if let data = UserDefaults.standard.data(forKey: preferencesKey),
+           let value = try? JSONDecoder().decode(RoutinePreferences.self, from: data) {
+            preferences = value
+        }
     }
 
     private func saveLocal() {
         guard let data = try? JSONEncoder().encode(records) else { return }
         UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    private func savePreferencesLocal() {
+        guard let data = try? JSONEncoder().encode(preferences) else { return }
+        UserDefaults.standard.set(data, forKey: preferencesKey)
     }
 
     private func upload(_ value: DayRecord) async {
@@ -177,6 +214,7 @@ final class RoutineStore: ObservableObject {
         do {
             let record = (try? await database.record(for: id)) ?? CKRecord(recordType: "RoutineDay", recordID: id)
             record["completedGoalIDs"] = Array(value.completedGoalIDs) as CKRecordValue
+            record["completionTimes"] = try? JSONEncoder().encode(value.completionTimes) as CKRecordValue
             record["waterOunces"] = value.waterOunces as CKRecordValue
             record["focusSessions"] = value.focusSessions as CKRecordValue
             record["importedSteps"] = value.importedSteps as CKRecordValue
@@ -188,12 +226,52 @@ final class RoutineStore: ObservableObject {
         }
     }
 
+    private func uploadPreferences() async {
+        guard let database else {
+            iCloudStatus = "Saved on this device"
+            return
+        }
+        let id = CKRecord.ID(recordName: "routine-preferences")
+        do {
+            let record = (try? await database.record(for: id)) ?? CKRecord(recordType: "RoutinePreferences", recordID: id)
+            record["scheduleOverrides"] = try JSONEncoder().encode(preferences.scheduleOverrides) as CKRecordValue
+            record["modifiedAt"] = preferences.modifiedAt as CKRecordValue
+            _ = try await database.save(record)
+            iCloudStatus = "Synced with private iCloud"
+        } catch {
+            iCloudStatus = "Offline—will sync later"
+        }
+    }
+
+    private func downloadPreferences(from database: CKDatabase) async {
+        let id = CKRecord.ID(recordName: "routine-preferences")
+        guard let record = try? await database.record(for: id),
+              let modifiedAt = record["modifiedAt"] as? Date,
+              let data = record["scheduleOverrides"] as? Data,
+              let overrides = try? JSONDecoder().decode([String: GoalScheduleTime].self, from: data) else {
+            if !preferences.scheduleOverrides.isEmpty { await uploadPreferences() }
+            return
+        }
+        if modifiedAt > preferences.modifiedAt {
+            preferences = RoutinePreferences(scheduleOverrides: overrides, modifiedAt: modifiedAt)
+            savePreferencesLocal()
+        }
+    }
+
     private static func dayRecord(from record: CKRecord) -> DayRecord? {
         guard let modifiedAt = record["modifiedAt"] as? Date else { return nil }
         let goalIDs = Set(record["completedGoalIDs"] as? [String] ?? [])
+        let completionTimes: [String: Date]
+        if let data = record["completionTimes"] as? Data,
+           let decoded = try? JSONDecoder().decode([String: Date].self, from: data) {
+            completionTimes = decoded
+        } else {
+            completionTimes = [:]
+        }
         return DayRecord(
             id: record.recordID.recordName,
             completedGoalIDs: goalIDs,
+            completionTimes: completionTimes,
             waterOunces: (record["waterOunces"] as? Int64).map(Int.init) ?? 0,
             focusSessions: (record["focusSessions"] as? Int64).map(Int.init) ?? 0,
             importedSteps: (record["importedSteps"] as? Int64).map(Int.init) ?? 0,

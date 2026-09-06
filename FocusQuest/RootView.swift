@@ -55,6 +55,7 @@ private struct HeroCard: View {
 
 private struct WaterCard: View {
     @EnvironmentObject private var store: RoutineStore
+    @State private var showingResetConfirmation = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -68,7 +69,15 @@ private struct WaterCard: View {
                     Button("+\(amount) oz") { store.addWater(amount) }.buttonStyle(.bordered).frame(maxWidth: .infinity)
                 }
             }
+            if store.today.waterOunces > 0 {
+                Button("Reset today's water", role: .destructive) { showingResetConfirmation = true }
+                    .font(.footnote)
+            }
         }.padding().background(.background, in: RoundedRectangle(cornerRadius: 20))
+            .confirmationDialog("Reset today's water to 0 oz?", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
+                Button("Reset water", role: .destructive) { store.resetWater() }
+                Button("Cancel", role: .cancel) { }
+            }
     }
 }
 
@@ -86,7 +95,13 @@ private struct GoalRow: View {
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text(goal.time, style: .time).font(.subheadline.monospacedDigit())
+                    if let completedAt = store.completedAt(goal) {
+                        Text("Done \(completedAt.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption.bold()).foregroundStyle(.green)
+                    } else {
+                        Text(store.scheduledTime(for: goal), style: .time)
+                            .font(.subheadline.monospacedDigit())
+                    }
                     Text("+\(goal.points)").font(.caption.bold()).foregroundStyle(.orange)
                 }
             }.contentShape(Rectangle()).padding()
@@ -173,9 +188,10 @@ struct SettingsView: View {
                 }
                 Section("Plan") {
                     LabeledContent("Water target", value: "80 oz")
-                    LabeledContent("Workout", value: "6:00–7:00 AM")
-                    LabeledContent("Baby time", value: "5:00–6:00 PM")
+                    LabeledContent("Workout", value: store.scheduledTime(for: RoutinePlan.goals.first { $0.id == "workout" }!).formatted(date: .omitted, time: .shortened))
+                    LabeledContent("Baby time", value: store.scheduledTime(for: RoutinePlan.goals.first { $0.id == "baby" }!).formatted(date: .omitted, time: .shortened))
                     LabeledContent("Meals", value: "3 daily")
+                    NavigationLink("Edit activity times") { ScheduleEditorView() }
                 }
                 Section("iCloud") {
                     Label(store.iCloudStatus, systemImage: "icloud.fill")
@@ -185,5 +201,33 @@ struct SettingsView: View {
                 }
             }.navigationTitle("Settings")
         }
+    }
+}
+
+struct ScheduleEditorView: View {
+    @EnvironmentObject private var store: RoutineStore
+
+    var body: some View {
+        Form {
+            Section {
+                Text("Changing a time also updates its daily notification when reminders are enabled.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Section("Daily activities") {
+                ForEach(RoutinePlan.goals) { goal in
+                    DatePicker(
+                        selection: Binding(
+                            get: { store.scheduledTime(for: goal) },
+                            set: { store.updateTime($0, for: goal) }
+                        ),
+                        displayedComponents: .hourAndMinute
+                    ) {
+                        Label(goal.title, systemImage: goal.kind.icon)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Activity times")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
