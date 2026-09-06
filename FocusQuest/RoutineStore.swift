@@ -6,6 +6,7 @@ import CloudKit
 final class RoutineStore: ObservableObject {
     @Published private(set) var records: [String: DayRecord] = [:]
     @Published var notificationsEnabled = false
+    @Published private(set) var notificationTestStatus = ""
     @Published private(set) var iCloudStatus = "Checking iCloud…"
     private let defaultsKey = "focusquest.records.v1"
     #if FOCUSQUEST_LOCAL_ONLY
@@ -104,6 +105,32 @@ final class RoutineStore: ObservableObject {
             notificationsEnabled = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
             if notificationsEnabled { await scheduleNotifications() }
         } catch { notificationsEnabled = false }
+    }
+
+    func sendTestNotification() async {
+        let center = UNUserNotificationCenter.current()
+        do {
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus != .authorized && settings.authorizationStatus != .provisional {
+                notificationsEnabled = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            } else {
+                notificationsEnabled = true
+            }
+            guard notificationsEnabled else {
+                notificationTestStatus = "Notifications are disabled in iPhone Settings."
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = "FocusQuest reminder test"
+            content.body = "Success—your routine reminders are ready."
+            content.sound = .default
+            content.interruptionLevel = .active
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false)
+            try await center.add(UNNotificationRequest(identifier: "focusquest.test", content: content, trigger: trigger))
+            notificationTestStatus = "Scheduled—lock the iPhone now and watch for the alert."
+        } catch {
+            notificationTestStatus = "Could not schedule the test reminder."
+        }
     }
 
     private func scheduleNotifications() async {

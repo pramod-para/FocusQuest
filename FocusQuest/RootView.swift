@@ -152,6 +152,12 @@ struct SettingsView: View {
             Form {
                 Section("Reminders") {
                     Button { Task { await store.requestNotifications() } } label: { Label(store.notificationsEnabled ? "Reminders enabled" : "Enable daily reminders", systemImage: "bell.badge.fill") }
+                    Button { Task { await store.sendTestNotification() } } label: {
+                        Label("Send test reminder in 10 seconds", systemImage: "bell.and.waves.left.and.right.fill")
+                    }
+                    if !store.notificationTestStatus.isEmpty {
+                        Text(store.notificationTestStatus).font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
                 Section("Apple Watch delivery") {
                     Label("Every FocusQuest reminder is eligible to mirror to your paired Apple Watch.", systemImage: "applewatch")
