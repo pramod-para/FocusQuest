@@ -8,7 +8,11 @@ final class RoutineStore: ObservableObject {
     @Published var notificationsEnabled = false
     @Published private(set) var iCloudStatus = "Checking iCloud…"
     private let defaultsKey = "focusquest.records.v1"
-    private let database = CKContainer.default().privateCloudDatabase
+    #if FOCUSQUEST_LOCAL_ONLY
+    private let database: CKDatabase? = nil
+    #else
+    private let database: CKDatabase? = CKContainer.default().privateCloudDatabase
+    #endif
 
     init() {
         load()
@@ -53,6 +57,10 @@ final class RoutineStore: ObservableObject {
     func addFocusSession() { mutateToday { $0.focusSessions += 1 } }
 
     func syncWithICloud() async {
+        guard let database else {
+            iCloudStatus = "On-device test mode"
+            return
+        }
         do {
             let status = try await CKContainer.default().accountStatus()
             guard status == .available else {
@@ -134,6 +142,10 @@ final class RoutineStore: ObservableObject {
     }
 
     private func upload(_ value: DayRecord) async {
+        guard let database else {
+            iCloudStatus = "Saved on this device"
+            return
+        }
         let id = CKRecord.ID(recordName: value.id)
         do {
             let record = (try? await database.record(for: id)) ?? CKRecord(recordType: "RoutineDay", recordID: id)

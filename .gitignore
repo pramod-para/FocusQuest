@@ -5,6 +5,7 @@ build/
 xcuserdata/
 *.xccheckout
 *.xcscmblueprint
+*.local.entitlements
 
 # macOS
 .DS_Store

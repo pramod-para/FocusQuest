@@ -29,6 +29,10 @@ Notification permission is requested only after tapping **Enable daily reminders
 
 For Watch delivery, open the Watch app on the paired iPhone, select **My Watch → Notifications**, and enable FocusQuest under **Mirror iPhone Alerts From**. Apple sends an alert to the Watch when the iPhone is locked or asleep and the Watch is unlocked; it normally does not alert both devices simultaneously.
 
+### Free Personal Team testing
+
+Apple does not allow CloudKit entitlements on a free Personal Team. Contributors can still test the interface and local notifications by using an empty local entitlement file and adding `-DFOCUSQUEST_LOCAL_ONLY` to **Other Swift Flags** for the Debug configuration. Files ending in `.local.entitlements` are ignored by Git. Production builds should retain the checked-in CloudKit entitlement and use a paid Apple Developer team.
+
 ## Next iterations
 
 1. HealthKit import for workouts, steps, sleep, and historical trends (opt-in)
