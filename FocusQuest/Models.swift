@@ -48,6 +48,8 @@ struct RoutineGoal: Identifiable, Codable, Hashable {
     var minute: Int
     var durationMinutes: Int
     var activeWeekdays: Set<Int>
+    var reminderEnabled: Bool
+    var reminderLeadMinutes: Int
     var points: Int
     var kind: GoalKind
 
@@ -59,6 +61,8 @@ struct RoutineGoal: Identifiable, Codable, Hashable {
         minute: Int,
         durationMinutes: Int = 10,
         activeWeekdays: Set<Int> = Set(1...7),
+        reminderEnabled: Bool = true,
+        reminderLeadMinutes: Int = 0,
         points: Int,
         kind: GoalKind
     ) {
@@ -69,12 +73,14 @@ struct RoutineGoal: Identifiable, Codable, Hashable {
         self.minute = minute
         self.durationMinutes = durationMinutes
         self.activeWeekdays = activeWeekdays
+        self.reminderEnabled = reminderEnabled
+        self.reminderLeadMinutes = reminderLeadMinutes
         self.points = points
         self.kind = kind
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, subtitle, hour, minute, durationMinutes, activeWeekdays, points, kind
+        case id, title, subtitle, hour, minute, durationMinutes, activeWeekdays, reminderEnabled, reminderLeadMinutes, points, kind
     }
 
     init(from decoder: Decoder) throws {
@@ -86,6 +92,8 @@ struct RoutineGoal: Identifiable, Codable, Hashable {
         minute = try values.decode(Int.self, forKey: .minute)
         durationMinutes = try values.decodeIfPresent(Int.self, forKey: .durationMinutes) ?? 10
         activeWeekdays = try values.decodeIfPresent(Set<Int>.self, forKey: .activeWeekdays) ?? Set(1...7)
+        reminderEnabled = try values.decodeIfPresent(Bool.self, forKey: .reminderEnabled) ?? true
+        reminderLeadMinutes = try values.decodeIfPresent(Int.self, forKey: .reminderLeadMinutes) ?? 0
         points = try values.decodeIfPresent(Int.self, forKey: .points) ?? 10
         kind = try values.decodeIfPresent(GoalKind.self, forKey: .kind) ?? .focus
     }
@@ -118,13 +126,26 @@ struct GoalScheduleTime: Codable, Hashable {
 struct RoutinePreferences: Codable {
     var goals: [RoutineGoal]? = nil
     var scheduleOverrides: [String: GoalScheduleTime] = [:]
+    var quietHoursEnabled: Bool = true
+    var quietStart: GoalScheduleTime = GoalScheduleTime(hour: 21, minute: 30)
+    var quietEnd: GoalScheduleTime = GoalScheduleTime(hour: 5, minute: 30)
     var modifiedAt: Date = .distantPast
 
-    private enum CodingKeys: String, CodingKey { case goals, scheduleOverrides, modifiedAt }
+    private enum CodingKeys: String, CodingKey { case goals, scheduleOverrides, quietHoursEnabled, quietStart, quietEnd, modifiedAt }
 
-    init(goals: [RoutineGoal]? = nil, scheduleOverrides: [String: GoalScheduleTime] = [:], modifiedAt: Date = .distantPast) {
+    init(
+        goals: [RoutineGoal]? = nil,
+        scheduleOverrides: [String: GoalScheduleTime] = [:],
+        quietHoursEnabled: Bool = true,
+        quietStart: GoalScheduleTime = GoalScheduleTime(hour: 21, minute: 30),
+        quietEnd: GoalScheduleTime = GoalScheduleTime(hour: 5, minute: 30),
+        modifiedAt: Date = .distantPast
+    ) {
         self.goals = goals
         self.scheduleOverrides = scheduleOverrides
+        self.quietHoursEnabled = quietHoursEnabled
+        self.quietStart = quietStart
+        self.quietEnd = quietEnd
         self.modifiedAt = modifiedAt
     }
 
@@ -132,6 +153,9 @@ struct RoutinePreferences: Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         goals = try values.decodeIfPresent([RoutineGoal].self, forKey: .goals)
         scheduleOverrides = try values.decodeIfPresent([String: GoalScheduleTime].self, forKey: .scheduleOverrides) ?? [:]
+        quietHoursEnabled = try values.decodeIfPresent(Bool.self, forKey: .quietHoursEnabled) ?? true
+        quietStart = try values.decodeIfPresent(GoalScheduleTime.self, forKey: .quietStart) ?? GoalScheduleTime(hour: 21, minute: 30)
+        quietEnd = try values.decodeIfPresent(GoalScheduleTime.self, forKey: .quietEnd) ?? GoalScheduleTime(hour: 5, minute: 30)
         modifiedAt = try values.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? .distantPast
     }
 }
@@ -140,6 +164,7 @@ struct DayRecord: Identifiable, Codable {
     var id: String
     var completedGoalIDs: Set<String> = []
     var completionTimes: [String: Date] = [:]
+    var skippedGoalIDs: Set<String> = []
     var waterOunces: Int = 0
     var focusSessions: Int = 0
     var importedSteps: Int = 0
@@ -149,6 +174,7 @@ struct DayRecord: Identifiable, Codable {
         id: String,
         completedGoalIDs: Set<String> = [],
         completionTimes: [String: Date] = [:],
+        skippedGoalIDs: Set<String> = [],
         waterOunces: Int = 0,
         focusSessions: Int = 0,
         importedSteps: Int = 0,
@@ -157,6 +183,7 @@ struct DayRecord: Identifiable, Codable {
         self.id = id
         self.completedGoalIDs = completedGoalIDs
         self.completionTimes = completionTimes
+        self.skippedGoalIDs = skippedGoalIDs
         self.waterOunces = waterOunces
         self.focusSessions = focusSessions
         self.importedSteps = importedSteps
@@ -164,7 +191,7 @@ struct DayRecord: Identifiable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, completedGoalIDs, completionTimes, waterOunces, focusSessions, importedSteps, modifiedAt
+        case id, completedGoalIDs, completionTimes, skippedGoalIDs, waterOunces, focusSessions, importedSteps, modifiedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -172,6 +199,7 @@ struct DayRecord: Identifiable, Codable {
         id = try values.decode(String.self, forKey: .id)
         completedGoalIDs = try values.decodeIfPresent(Set<String>.self, forKey: .completedGoalIDs) ?? []
         completionTimes = try values.decodeIfPresent([String: Date].self, forKey: .completionTimes) ?? [:]
+        skippedGoalIDs = try values.decodeIfPresent(Set<String>.self, forKey: .skippedGoalIDs) ?? []
         waterOunces = try values.decodeIfPresent(Int.self, forKey: .waterOunces) ?? 0
         focusSessions = try values.decodeIfPresent(Int.self, forKey: .focusSessions) ?? 0
         importedSteps = try values.decodeIfPresent(Int.self, forKey: .importedSteps) ?? 0

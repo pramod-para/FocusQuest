@@ -2,7 +2,8 @@ import SwiftUI
 
 @main
 struct FocusQuestApp: App {
-    @StateObject private var store = RoutineStore()
+    @UIApplicationDelegateAdaptor(FocusQuestAppDelegate.self) private var appDelegate
+    @StateObject private var store = RoutineStore.shared
 
     var body: some Scene {
         WindowGroup {

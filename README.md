@@ -7,6 +7,8 @@ A privacy-first SwiftUI app that turns the daily health, focus, movement, and fa
 - Chronological daily goals based on `DAILY.md`
 - Add, rename, schedule, reorder, and delete activities
 - Per-activity weekday selection and duration
+- Per-activity reminders at the start time or 5–30 minutes before
+- Global quiet hours and actionable Complete, Snooze, and Skip notifications
 - Points, levels, completion percentage, and streaks
 - 80 oz water tracker
 - Hourly movement and meal reminders
@@ -39,7 +41,7 @@ Apple does not allow CloudKit entitlements on a free Personal Team. Contributors
 ## Next iterations
 
 1. HealthKit import for workouts, steps, sleep, and historical trends (opt-in)
-2. Editable schedules and notification days
+2. Adaptive reminders based on completion patterns and missed activities
 3. Data export and account-safe deletion controls
 4. Widgets, Live Activities, and Apple Watch companion
 5. Safer recommendation rules with user-selected goals and constraints

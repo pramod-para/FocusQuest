@@ -87,13 +87,19 @@ private struct WaterCard: View {
 private struct GoalRow: View {
     @EnvironmentObject private var store: RoutineStore
     let goal: RoutineGoal
+    private var isSkipped: Bool { store.isSkipped(goal) }
     var body: some View {
-        Button { withAnimation(.snappy) { store.toggle(goal) } } label: {
+        Button {
+            withAnimation(.snappy) {
+                if isSkipped { store.unskip(goal) } else { store.toggle(goal) }
+            }
+        } label: {
             HStack(spacing: 14) {
-                Image(systemName: store.isComplete(goal) ? "checkmark.circle.fill" : goal.kind.icon)
-                    .font(.title2).frame(width: 34).foregroundStyle(store.isComplete(goal) ? .green : .indigo)
+                Image(systemName: isSkipped ? "minus.circle.fill" : (store.isComplete(goal) ? "checkmark.circle.fill" : goal.kind.icon))
+                    .font(.title2).frame(width: 34)
+                    .foregroundStyle(isSkipped ? Color(.secondaryLabel) : (store.isComplete(goal) ? Color.green : Color.indigo))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(goal.title).font(.headline).strikethrough(store.isComplete(goal))
+                    Text(goal.title).font(.headline).strikethrough(store.isComplete(goal) || isSkipped)
                     Text(goal.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     Text("\(goal.durationMinutes) min").font(.caption2).foregroundStyle(.tertiary)
                 }
@@ -102,6 +108,9 @@ private struct GoalRow: View {
                     if let completedAt = store.completedAt(goal) {
                         Text("Done \(completedAt.formatted(date: .omitted, time: .shortened))")
                             .font(.caption.bold()).foregroundStyle(.green)
+                    } else if isSkipped {
+                        Text("Skipped")
+                            .font(.caption.bold()).foregroundStyle(.secondary)
                     } else {
                         Text(store.scheduledTime(for: goal), style: .time)
                             .font(.subheadline.monospacedDigit())
@@ -109,7 +118,16 @@ private struct GoalRow: View {
                     Text("+\(goal.points)").font(.caption.bold()).foregroundStyle(.orange)
                 }
             }.contentShape(Rectangle()).padding()
-        }.buttonStyle(.plain).background(.background, in: RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+        .background(.background, in: RoundedRectangle(cornerRadius: 18))
+        .contextMenu {
+            if isSkipped {
+                Button("Put back today", systemImage: "arrow.uturn.backward") { store.unskip(goal) }
+            } else if !store.isComplete(goal) {
+                Button("Skip today", systemImage: "forward.fill", role: .destructive) { store.skipToday(goalID: goal.id) }
+            }
+        }
     }
 }
 
@@ -144,10 +162,14 @@ private struct DayBar: View {
     let offset: Int
     var date: Date { Calendar.current.date(byAdding: .day, value: -offset, to: .now)! }
     var count: Int {
-        let completed = store.records[RoutineStore.key(for: date)]?.completedGoalIDs ?? []
+        let record = store.records[RoutineStore.key(for: date)]
+        let completed = record?.completedGoalIDs ?? []
         return store.goals(for: date).filter { completed.contains($0.id) }.count
     }
-    var possibleCount: Int { max(1, store.goals(for: date).count) }
+    var possibleCount: Int {
+        let skipped = store.records[RoutineStore.key(for: date)]?.skippedGoalIDs ?? []
+        return max(1, store.goals(for: date).filter { !skipped.contains($0.id) }.count)
+    }
     var body: some View {
         VStack { Spacer(); RoundedRectangle(cornerRadius: 6).fill(.indigo.gradient).frame(height: max(6, CGFloat(count) / CGFloat(possibleCount) * 110)); Text(date.formatted(.dateTime.weekday(.narrow))).font(.caption) }.frame(maxWidth: .infinity)
     }
@@ -181,6 +203,26 @@ struct SettingsView: View {
                     if !store.notificationTestStatus.isEmpty {
                         Text(store.notificationTestStatus).font(.footnote).foregroundStyle(.secondary)
                     }
+                    Text("Press and hold a reminder to Complete, Snooze 10 min, or Skip today.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Quiet hours") {
+                    Toggle("Pause reminders", isOn: Binding(
+                        get: { store.preferences.quietHoursEnabled },
+                        set: { store.setQuietHoursEnabled($0) }
+                    ))
+                    if store.preferences.quietHoursEnabled {
+                        DatePicker("From", selection: Binding(
+                            get: { store.preferences.quietStart.date },
+                            set: { store.updateQuietStart($0) }
+                        ), displayedComponents: .hourAndMinute)
+                        DatePicker("Until", selection: Binding(
+                            get: { store.preferences.quietEnd.date },
+                            set: { store.updateQuietEnd($0) }
+                        ), displayedComponents: .hourAndMinute)
+                    }
+                    Text("Activity reminders that fall inside this window stay silent and are not scheduled.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Apple Watch delivery") {
                     Label("Every FocusQuest reminder is eligible to mirror to your paired Apple Watch.", systemImage: "applewatch")
@@ -231,6 +273,8 @@ struct ScheduleEditorView: View {
                                 Text(goal.title)
                                 Text("\(store.scheduledTime(for: goal).formatted(date: .omitted, time: .shortened)) · \(goal.durationMinutes) min · \(weekdaySummary(goal.activeWeekdays))")
                                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                Label(reminderSummary(goal), systemImage: goal.reminderEnabled ? "bell.fill" : "bell.slash.fill")
+                                    .font(.caption2).foregroundStyle(.tertiary)
                             }
                         }
                     }
@@ -270,6 +314,11 @@ struct ScheduleEditorView: View {
         if weekdays.count == 7 { return "Every day" }
         let ordered = [(2, "Mon"), (3, "Tue"), (4, "Wed"), (5, "Thu"), (6, "Fri"), (7, "Sat"), (1, "Sun")]
         return ordered.filter { weekdays.contains($0.0) }.map(\.1).joined(separator: ", ")
+    }
+
+    private func reminderSummary(_ goal: RoutineGoal) -> String {
+        guard goal.reminderEnabled else { return "Reminder off" }
+        return goal.reminderLeadMinutes == 0 ? "At start time" : "\(goal.reminderLeadMinutes) min before"
     }
 }
 
@@ -320,6 +369,18 @@ struct GoalEditorView: View {
                                     .foregroundStyle(draft.activeWeekdays.contains(weekday) ? .white : .primary)
                             }.buttonStyle(.plain)
                         }
+                    }
+                }
+            }
+            Section("Reminder") {
+                Toggle("Remind me", isOn: $draft.reminderEnabled)
+                if draft.reminderEnabled {
+                    Picker("Alert", selection: $draft.reminderLeadMinutes) {
+                        Text("At start time").tag(0)
+                        Text("5 minutes before").tag(5)
+                        Text("10 minutes before").tag(10)
+                        Text("15 minutes before").tag(15)
+                        Text("30 minutes before").tag(30)
                     }
                 }
             }
