@@ -134,6 +134,7 @@ private struct GoalRow: View {
 
 struct ProgressDashboardView: View {
     @EnvironmentObject private var store: RoutineStore
+    @EnvironmentObject private var health: HealthKitManager
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -141,6 +142,25 @@ struct ProgressDashboardView: View {
                     StatCard(title: "Total points", value: "\(store.totalPoints)", icon: "star.fill")
                     StatCard(title: "Current level", value: "\(store.level)", icon: "trophy.fill")
                     StatCard(title: "Current streak", value: "\(store.streak) days", icon: "flame.fill")
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Label("Apple Health", systemImage: "heart.fill").font(.headline).foregroundStyle(.pink)
+                            Spacer()
+                            if health.isRefreshing { ProgressView() }
+                        }
+                        HStack {
+                            HealthMetric(value: store.today.importedSteps.formatted(), label: "steps", icon: "figure.walk")
+                            HealthMetric(value: "\(store.today.importedWorkoutMinutes)", label: "workout min", icon: "figure.run")
+                            HealthMetric(value: sleepText, label: "sleep", icon: "bed.double.fill")
+                        }
+                        if let date = store.today.healthImportedAt {
+                            Text("Updated \(date.formatted(date: .omitted, time: .shortened))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text("Connect Apple Health in Settings to import private daily summaries.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }.padding().background(.background, in: RoundedRectangle(cornerRadius: 20))
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Last 7 days").font(.headline)
                         HStack(alignment: .bottom, spacing: 8) {
@@ -150,6 +170,25 @@ struct ProgressDashboardView: View {
                 }.padding()
             }.background(Color(.systemGroupedBackground)).navigationTitle("Progress")
         }
+    }
+
+    private var sleepText: String {
+        let minutes = store.today.importedSleepMinutes
+        return minutes == 0 ? "—" : String(format: "%dh %02dm", minutes / 60, minutes % 60)
+    }
+}
+
+private struct HealthMetric: View {
+    let value: String
+    let label: String
+    let icon: String
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon).foregroundStyle(.pink)
+            Text(value).font(.headline.monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        }.frame(maxWidth: .infinity)
     }
 }
 
@@ -193,6 +232,7 @@ struct CoachView: View {
 
 struct SettingsView: View {
     @EnvironmentObject private var store: RoutineStore
+    @EnvironmentObject private var health: HealthKitManager
     var body: some View {
         NavigationStack {
             Form {
@@ -225,8 +265,11 @@ struct SettingsView: View {
                     Text("Activity reminders that fall inside this window stay silent and are not scheduled.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("Apple Watch delivery") {
-                    Label("Every FocusQuest reminder is eligible to mirror to your paired Apple Watch.", systemImage: "applewatch")
+                Section("Apple Watch") {
+                    Label("Native companion included", systemImage: "applewatch")
+                    Text("View today's routine, check in, skip an activity, and log 8 oz of water from your Watch. Changes sync back to this iPhone.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Label("Every FocusQuest reminder is also eligible to mirror to your paired Apple Watch.", systemImage: "bell.badge.fill")
                     VStack(alignment: .leading, spacing: 8) {
                         Text("On your iPhone:").font(.headline)
                         Text("1. Open the Watch app")
@@ -235,6 +278,18 @@ struct SettingsView: View {
                         Text("4. Keep the Watch unlocked and worn")
                     }.font(.subheadline)
                     Text("Apple normally alerts either the Watch or iPhone—not both. When the iPhone is locked or asleep, the alert goes to the unlocked Watch.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("Apple Health") {
+                    Button {
+                        Task { await health.connectAndRefresh(store: store) }
+                    } label: {
+                        Label(store.today.healthImportedAt == nil ? "Connect Apple Health" : "Refresh Apple Health", systemImage: "heart.fill")
+                    }
+                    .disabled(health.isRefreshing || !health.isAvailable)
+                    if health.isRefreshing { ProgressView("Reading daily summaries…") }
+                    else { Text(health.status).font(.footnote).foregroundStyle(.secondary) }
+                    Text("Read only: today's steps and workouts, plus last night's sleep. FocusQuest never writes health data and stores only daily totals in your private app history.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Plan") {

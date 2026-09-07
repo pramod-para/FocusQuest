@@ -168,6 +168,9 @@ struct DayRecord: Identifiable, Codable {
     var waterOunces: Int = 0
     var focusSessions: Int = 0
     var importedSteps: Int = 0
+    var importedWorkoutMinutes: Int = 0
+    var importedSleepMinutes: Int = 0
+    var healthImportedAt: Date? = nil
     var modifiedAt: Date = .now
 
     init(
@@ -178,6 +181,9 @@ struct DayRecord: Identifiable, Codable {
         waterOunces: Int = 0,
         focusSessions: Int = 0,
         importedSteps: Int = 0,
+        importedWorkoutMinutes: Int = 0,
+        importedSleepMinutes: Int = 0,
+        healthImportedAt: Date? = nil,
         modifiedAt: Date = .now
     ) {
         self.id = id
@@ -187,11 +193,15 @@ struct DayRecord: Identifiable, Codable {
         self.waterOunces = waterOunces
         self.focusSessions = focusSessions
         self.importedSteps = importedSteps
+        self.importedWorkoutMinutes = importedWorkoutMinutes
+        self.importedSleepMinutes = importedSleepMinutes
+        self.healthImportedAt = healthImportedAt
         self.modifiedAt = modifiedAt
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, completedGoalIDs, completionTimes, skippedGoalIDs, waterOunces, focusSessions, importedSteps, modifiedAt
+        case id, completedGoalIDs, completionTimes, skippedGoalIDs, waterOunces, focusSessions, importedSteps
+        case importedWorkoutMinutes, importedSleepMinutes, healthImportedAt, modifiedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -203,6 +213,9 @@ struct DayRecord: Identifiable, Codable {
         waterOunces = try values.decodeIfPresent(Int.self, forKey: .waterOunces) ?? 0
         focusSessions = try values.decodeIfPresent(Int.self, forKey: .focusSessions) ?? 0
         importedSteps = try values.decodeIfPresent(Int.self, forKey: .importedSteps) ?? 0
+        importedWorkoutMinutes = try values.decodeIfPresent(Int.self, forKey: .importedWorkoutMinutes) ?? 0
+        importedSleepMinutes = try values.decodeIfPresent(Int.self, forKey: .importedSleepMinutes) ?? 0
+        healthImportedAt = try values.decodeIfPresent(Date.self, forKey: .healthImportedAt)
         modifiedAt = try values.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? .distantPast
     }
 }

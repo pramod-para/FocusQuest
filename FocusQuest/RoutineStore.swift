@@ -21,6 +21,8 @@ final class RoutineStore: ObservableObject {
 
     init() {
         load()
+        PhoneWatchConnectivity.shared.activate()
+        publishWatchSnapshot()
         Task {
             let settings = await UNUserNotificationCenter.current().notificationSettings()
             notificationsEnabled = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
@@ -133,6 +135,15 @@ final class RoutineStore: ObservableObject {
     func resetWater() { mutateToday { $0.waterOunces = 0 } }
     func addFocusSession() { mutateToday { $0.focusSessions += 1 } }
 
+    func updateHealthMetrics(steps: Int, workoutMinutes: Int, sleepMinutes: Int) {
+        mutateToday { record in
+            record.importedSteps = max(0, steps)
+            record.importedWorkoutMinutes = max(0, workoutMinutes)
+            record.importedSleepMinutes = max(0, sleepMinutes)
+            record.healthImportedAt = .now
+        }
+    }
+
     func updateTime(_ date: Date, for goal: RoutineGoal) {
         var updated = goal
         let time = GoalScheduleTime(date: date)
@@ -177,6 +188,7 @@ final class RoutineStore: ObservableObject {
         preferences.scheduleOverrides = [:]
         preferences.modifiedAt = .now
         savePreferencesLocal()
+        publishWatchSnapshot()
         Task {
             await uploadPreferences()
             let settings = await UNUserNotificationCenter.current().notificationSettings()
@@ -372,7 +384,12 @@ final class RoutineStore: ObservableObject {
         record.modifiedAt = .now
         records[todayKey] = record
         saveLocal()
+        publishWatchSnapshot()
         Task { await upload(record) }
+    }
+
+    func publishWatchSnapshot() {
+        PhoneWatchConnectivity.shared.send(snapshot: WatchSnapshot(store: self))
     }
 
     private func load() {
@@ -410,6 +427,9 @@ final class RoutineStore: ObservableObject {
             record["waterOunces"] = value.waterOunces as CKRecordValue
             record["focusSessions"] = value.focusSessions as CKRecordValue
             record["importedSteps"] = value.importedSteps as CKRecordValue
+            record["importedWorkoutMinutes"] = value.importedWorkoutMinutes as CKRecordValue
+            record["importedSleepMinutes"] = value.importedSleepMinutes as CKRecordValue
+            record["healthImportedAt"] = value.healthImportedAt as CKRecordValue?
             record["modifiedAt"] = value.modifiedAt as CKRecordValue
             _ = try await database.save(record)
             iCloudStatus = "Synced with private iCloud"
@@ -474,6 +494,9 @@ final class RoutineStore: ObservableObject {
             waterOunces: (record["waterOunces"] as? Int64).map(Int.init) ?? 0,
             focusSessions: (record["focusSessions"] as? Int64).map(Int.init) ?? 0,
             importedSteps: (record["importedSteps"] as? Int64).map(Int.init) ?? 0,
+            importedWorkoutMinutes: (record["importedWorkoutMinutes"] as? Int64).map(Int.init) ?? 0,
+            importedSleepMinutes: (record["importedSleepMinutes"] as? Int64).map(Int.init) ?? 0,
+            healthImportedAt: record["healthImportedAt"] as? Date,
             modifiedAt: modifiedAt
         )
     }

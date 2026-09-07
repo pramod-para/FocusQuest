@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		A10000000000000000000011 /* FocusQuestReport.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000A /* FocusQuestReport.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B00000000000000000000011 /* FocusQuestWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000A /* FocusQuestWatch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		B00000000000000000000012 /* FocusQuestWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000A /* FocusQuestWatch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		B00000000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000B /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -17,6 +20,20 @@
 			proxyType = 1;
 			remoteGlobalIDString = A10000000000000000000002;
 			remoteInfo = FocusQuestReport;
+		};
+		B00000000000000000000014 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B00000000000000000000002;
+			remoteInfo = FocusQuestWatch;
+		};
+		B00000000000000000000015 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B00000000000000000000002;
+			remoteInfo = FocusQuestWatch;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -32,12 +49,36 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B00000000000000000000010 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B00000000000000000000011 /* FocusQuestWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B00000000000000000000020 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B00000000000000000000012 /* FocusQuestWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A0000000000000000000000A /* FocusQuest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FocusQuest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000000000000000000000A /* FocusQuestReport.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FocusQuestReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000A /* FocusQuestLocal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FocusQuestLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0000000000000000000000A /* FocusQuestWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FocusQuestWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0000000000000000000000B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = FocusQuest/Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -49,6 +90,11 @@
 		A1000000000000000000000D /* FocusQuestReport */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FocusQuestReport;
+			sourceTree = "<group>";
+		};
+		B0000000000000000000000D /* FocusQuestWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FocusQuestWatch;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +121,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B00000000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -83,6 +136,8 @@
 			children = (
 				A0000000000000000000000D /* FocusQuest */,
 				A1000000000000000000000D /* FocusQuestReport */,
+				B0000000000000000000000D /* FocusQuestWatch */,
+				B0000000000000000000000B /* Assets.xcassets */,
 				A00000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -93,6 +148,7 @@
 				A0000000000000000000000A /* FocusQuest.app */,
 				A1000000000000000000000A /* FocusQuestReport.appex */,
 				A2000000000000000000000A /* FocusQuestLocal.app */,
+				B0000000000000000000000A /* FocusQuestWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,11 +164,13 @@
 				A00000000000000000000008 /* Frameworks */,
 				A00000000000000000000009 /* Resources */,
 				A10000000000000000000010 /* Embed Foundation Extensions */,
+				B00000000000000000000010 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				A10000000000000000000013 /* PBXTargetDependency */,
+				B00000000000000000000016 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A0000000000000000000000D /* FocusQuest */,
@@ -153,10 +211,12 @@
 				A20000000000000000000007 /* Sources */,
 				A20000000000000000000008 /* Frameworks */,
 				A20000000000000000000009 /* Resources */,
+				B00000000000000000000020 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B00000000000000000000017 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A0000000000000000000000D /* FocusQuest */,
@@ -166,6 +226,28 @@
 			);
 			productName = FocusQuestLocal;
 			productReference = A2000000000000000000000A /* FocusQuestLocal.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B00000000000000000000002 /* FocusQuestWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B00000000000000000000006 /* Build configuration list for PBXNativeTarget "FocusQuestWatch" */;
+			buildPhases = (
+				B00000000000000000000007 /* Sources */,
+				B00000000000000000000008 /* Frameworks */,
+				B00000000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B0000000000000000000000D /* FocusQuestWatch */,
+			);
+			name = FocusQuestWatch;
+			packageProductDependencies = (
+			);
+			productName = FocusQuestWatch;
+			productReference = B0000000000000000000000A /* FocusQuestWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -187,6 +269,9 @@
 					A20000000000000000000002 = {
 						CreatedOnToolsVersion = 26.6;
 					};
+					B00000000000000000000002 = {
+						CreatedOnToolsVersion = 26.6;
+					};
 				};
 			};
 			buildConfigurationList = A00000000000000000000003 /* Build configuration list for PBXProject "FocusQuest" */;
@@ -205,6 +290,7 @@
 				A00000000000000000000002 /* FocusQuest */,
 				A10000000000000000000002 /* FocusQuestReport */,
 				A20000000000000000000002 /* FocusQuestLocal */,
+				B00000000000000000000002 /* FocusQuestWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -228,6 +314,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B00000000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00000000000000000000013 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -255,6 +349,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B00000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -262,6 +363,16 @@
 			isa = PBXTargetDependency;
 			target = A10000000000000000000002 /* FocusQuestReport */;
 			targetProxy = A10000000000000000000012 /* PBXContainerItemProxy */;
+		};
+		B00000000000000000000016 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B00000000000000000000002 /* FocusQuestWatch */;
+			targetProxy = B00000000000000000000014 /* PBXContainerItemProxy */;
+		};
+		B00000000000000000000017 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B00000000000000000000002 /* FocusQuestWatch */;
+			targetProxy = B00000000000000000000015 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -405,6 +516,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_ENTITLEMENTS = FocusQuest/FocusQuest.local-health.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -427,6 +539,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_ENTITLEMENTS = FocusQuest/FocusQuest.local-health.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -441,6 +554,58 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = minimal;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B0000000000000000000000E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				FOCUSQUEST_BUNDLE_ID = com.example.FocusQuest;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FocusQuest;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(FOCUSQUEST_BUNDLE_ID)";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FOCUSQUEST_BUNDLE_ID).watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		B0000000000000000000000F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				FOCUSQUEST_BUNDLE_ID = com.example.FocusQuest;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FocusQuest;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(FOCUSQUEST_BUNDLE_ID)";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(FOCUSQUEST_BUNDLE_ID).watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Release;
 		};
@@ -479,6 +644,15 @@
 			buildConfigurations = (
 				A2000000000000000000000E /* Debug */,
 				A2000000000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B00000000000000000000006 /* Build configuration list for PBXNativeTarget "FocusQuestWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B0000000000000000000000E /* Debug */,
+				B0000000000000000000000F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
