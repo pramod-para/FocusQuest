@@ -5,6 +5,7 @@ struct RootView: View {
         TabView {
             TodayView().tabItem { Label("Today", systemImage: "checkmark.circle.fill") }
             ProgressDashboardView().tabItem { Label("Progress", systemImage: "chart.bar.fill") }
+            ScreenTimeDashboardView().tabItem { Label("Screen Time", systemImage: "hourglass") }
             CoachView().tabItem { Label("Coach", systemImage: "sparkles") }
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
