@@ -22,27 +22,41 @@ final class RoutineStore: ObservableObject {
         Task { await syncWithICloud() }
     }
 
+    var goals: [RoutineGoal] {
+        let source = preferences.goals ?? RoutinePlan.goals
+        return source.map { goal in
+            guard let override = preferences.scheduleOverrides[goal.id] else { return goal }
+            var updated = goal
+            updated.hour = override.hour
+            updated.minute = override.minute
+            return updated
+        }
+    }
+    var todayGoals: [RoutineGoal] { goals(for: .now) }
     var todayKey: String { Self.key(for: .now) }
     var today: DayRecord { records[todayKey] ?? DayRecord(id: todayKey) }
-    var completedCount: Int { today.completedGoalIDs.count }
+    var completedCount: Int { todayGoals.filter { today.completedGoalIDs.contains($0.id) }.count }
     var totalPoints: Int {
         records.values.reduce(0) { total, record in
-            total + RoutinePlan.goals.filter { record.completedGoalIDs.contains($0.id) }.reduce(0) { $0 + $1.points }
+            total + goals.filter { record.completedGoalIDs.contains($0.id) }.reduce(0) { $0 + $1.points }
                 + min(record.waterOunces, RoutinePlan.waterTarget) / 8 * 2
         }
     }
     var level: Int { max(1, totalPoints / 500 + 1) }
     var todayPoints: Int {
-        RoutinePlan.goals.filter { today.completedGoalIDs.contains($0.id) }.reduce(0) { $0 + $1.points }
+        todayGoals.filter { today.completedGoalIDs.contains($0.id) }.reduce(0) { $0 + $1.points }
             + min(today.waterOunces, RoutinePlan.waterTarget) / 8 * 2
     }
-    var completion: Double { Double(completedCount) / Double(RoutinePlan.goals.count) }
+    var completion: Double { todayGoals.isEmpty ? 0 : Double(completedCount) / Double(todayGoals.count) }
     var streak: Int {
         var count = 0
         for offset in 0..<365 {
             guard let day = Calendar.current.date(byAdding: .day, value: -offset, to: .now) else { break }
             let record = records[Self.key(for: day)]
-            if let record, record.completedGoalIDs.count >= 8 { count += 1 } else if offset > 0 { break }
+            let dayGoals = goals(for: day)
+            let required = max(1, Int(ceil(Double(dayGoals.count) * 0.6)))
+            let achieved = dayGoals.filter { record?.completedGoalIDs.contains($0.id) == true }.count
+            if achieved >= required { count += 1 } else if offset > 0 { break }
         }
         return count
     }
@@ -51,6 +65,11 @@ final class RoutineStore: ObservableObject {
     func completedAt(_ goal: RoutineGoal) -> Date? { today.completionTimes[goal.id] }
     func scheduledTime(for goal: RoutineGoal) -> Date {
         (preferences.scheduleOverrides[goal.id] ?? GoalScheduleTime(hour: goal.hour, minute: goal.minute)).date
+    }
+
+    func goals(for date: Date) -> [RoutineGoal] {
+        let weekday = Calendar.current.component(.weekday, from: date)
+        return goals.filter { $0.activeWeekdays.contains(weekday) }
     }
 
     func toggle(_ goal: RoutineGoal) {
@@ -70,7 +89,47 @@ final class RoutineStore: ObservableObject {
     func addFocusSession() { mutateToday { $0.focusSessions += 1 } }
 
     func updateTime(_ date: Date, for goal: RoutineGoal) {
-        preferences.scheduleOverrides[goal.id] = GoalScheduleTime(date: date)
+        var updated = goal
+        let time = GoalScheduleTime(date: date)
+        updated.hour = time.hour
+        updated.minute = time.minute
+        updateGoal(updated)
+    }
+
+    func addGoal(_ goal: RoutineGoal) {
+        var updatedGoals = materializedGoals()
+        updatedGoals.append(goal)
+        persistGoals(updatedGoals)
+    }
+
+    func updateGoal(_ goal: RoutineGoal) {
+        var updatedGoals = materializedGoals()
+        guard let index = updatedGoals.firstIndex(where: { $0.id == goal.id }) else { return }
+        var safeGoal = goal
+        if safeGoal.activeWeekdays.isEmpty { safeGoal.activeWeekdays = Set(1...7) }
+        safeGoal.durationMinutes = max(1, safeGoal.durationMinutes)
+        safeGoal.title = safeGoal.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        updatedGoals[index] = safeGoal
+        persistGoals(updatedGoals)
+    }
+
+    func deleteGoals(at offsets: IndexSet) {
+        var updatedGoals = materializedGoals()
+        updatedGoals.remove(atOffsets: offsets)
+        persistGoals(updatedGoals)
+    }
+
+    func moveGoals(from source: IndexSet, to destination: Int) {
+        var updatedGoals = materializedGoals()
+        updatedGoals.move(fromOffsets: source, toOffset: destination)
+        persistGoals(updatedGoals)
+    }
+
+    private func materializedGoals() -> [RoutineGoal] { goals }
+
+    private func persistGoals(_ updatedGoals: [RoutineGoal]) {
+        preferences.goals = updatedGoals
+        preferences.scheduleOverrides = [:]
         preferences.modifiedAt = .now
         savePreferencesLocal()
         Task {
@@ -117,7 +176,7 @@ final class RoutineStore: ObservableObject {
             return records[Self.key(for: date)]
         }
         guard !recent.isEmpty else { return "Complete a few days and your weekly coaching will appear here." }
-        let missed = RoutinePlan.goals.map { goal in
+        let missed = goals.map { goal in
             (goal, recent.filter { !$0.completedGoalIDs.contains(goal.id) }.count)
         }.max { $0.1 < $1.1 }
         if let missed, missed.1 > 0 {
@@ -161,17 +220,23 @@ final class RoutineStore: ObservableObject {
 
     private func scheduleNotifications() async {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: RoutinePlan.goals.map(\.id))
-        for goal in RoutinePlan.goals {
-            let content = UNMutableNotificationContent()
-            content.title = goal.title
-            content.body = goal.subtitle
-            content.sound = .default
-            content.interruptionLevel = .active
-            content.threadIdentifier = "daily-routine"
-            let time = preferences.scheduleOverrides[goal.id] ?? GoalScheduleTime(hour: goal.hour, minute: goal.minute)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: time.hour, minute: time.minute), repeats: true)
-            try? await center.add(UNNotificationRequest(identifier: goal.id, content: content, trigger: trigger))
+        center.removeAllPendingNotificationRequests()
+        for goal in goals {
+            for weekday in goal.activeWeekdays.sorted() {
+                let content = UNMutableNotificationContent()
+                content.title = goal.title
+                content.body = goal.subtitle.isEmpty ? "Time for your \(goal.durationMinutes)-minute activity." : goal.subtitle
+                content.sound = .default
+                content.interruptionLevel = .active
+                content.threadIdentifier = "daily-routine"
+                var components = DateComponents()
+                components.weekday = weekday
+                components.hour = goal.hour
+                components.minute = goal.minute
+                let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+                let identifier = "\(goal.id).\(weekday)"
+                try? await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
+            }
         }
     }
 
@@ -234,7 +299,7 @@ final class RoutineStore: ObservableObject {
         let id = CKRecord.ID(recordName: "routine-preferences")
         do {
             let record = (try? await database.record(for: id)) ?? CKRecord(recordType: "RoutinePreferences", recordID: id)
-            record["scheduleOverrides"] = try JSONEncoder().encode(preferences.scheduleOverrides) as CKRecordValue
+            record["preferencesData"] = try JSONEncoder().encode(preferences) as CKRecordValue
             record["modifiedAt"] = preferences.modifiedAt as CKRecordValue
             _ = try await database.save(record)
             iCloudStatus = "Synced with private iCloud"
@@ -246,14 +311,19 @@ final class RoutineStore: ObservableObject {
     private func downloadPreferences(from database: CKDatabase) async {
         let id = CKRecord.ID(recordName: "routine-preferences")
         guard let record = try? await database.record(for: id),
-              let modifiedAt = record["modifiedAt"] as? Date,
-              let data = record["scheduleOverrides"] as? Data,
-              let overrides = try? JSONDecoder().decode([String: GoalScheduleTime].self, from: data) else {
-            if !preferences.scheduleOverrides.isEmpty { await uploadPreferences() }
+              let modifiedAt = record["modifiedAt"] as? Date else {
+            if preferences.goals != nil || !preferences.scheduleOverrides.isEmpty { await uploadPreferences() }
             return
         }
         if modifiedAt > preferences.modifiedAt {
-            preferences = RoutinePreferences(scheduleOverrides: overrides, modifiedAt: modifiedAt)
+            if let data = record["preferencesData"] as? Data,
+               var decoded = try? JSONDecoder().decode(RoutinePreferences.self, from: data) {
+                decoded.modifiedAt = modifiedAt
+                preferences = decoded
+            } else if let data = record["scheduleOverrides"] as? Data,
+                      let overrides = try? JSONDecoder().decode([String: GoalScheduleTime].self, from: data) {
+                preferences = RoutinePreferences(scheduleOverrides: overrides, modifiedAt: modifiedAt)
+            }
             savePreferencesLocal()
         }
     }

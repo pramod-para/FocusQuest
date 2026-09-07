@@ -21,7 +21,10 @@ struct TodayView: View {
                     HeroCard()
                     WaterCard()
                     LazyVStack(spacing: 10) {
-                        ForEach(RoutinePlan.goals) { goal in GoalRow(goal: goal) }
+                        ForEach(store.todayGoals) { goal in GoalRow(goal: goal) }
+                        if store.todayGoals.isEmpty {
+                            ContentUnavailableView("No activities today", systemImage: "calendar.badge.checkmark", description: Text("Add a goal or enable it for this weekday in Settings."))
+                        }
                     }
                 }
                 .padding()
@@ -92,6 +95,7 @@ private struct GoalRow: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(goal.title).font(.headline).strikethrough(store.isComplete(goal))
                     Text(goal.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    Text("\(goal.durationMinutes) min").font(.caption2).foregroundStyle(.tertiary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 3) {
@@ -139,9 +143,13 @@ private struct DayBar: View {
     @EnvironmentObject private var store: RoutineStore
     let offset: Int
     var date: Date { Calendar.current.date(byAdding: .day, value: -offset, to: .now)! }
-    var count: Int { store.records[RoutineStore.key(for: date)]?.completedGoalIDs.count ?? 0 }
+    var count: Int {
+        let completed = store.records[RoutineStore.key(for: date)]?.completedGoalIDs ?? []
+        return store.goals(for: date).filter { completed.contains($0.id) }.count
+    }
+    var possibleCount: Int { max(1, store.goals(for: date).count) }
     var body: some View {
-        VStack { Spacer(); RoundedRectangle(cornerRadius: 6).fill(.indigo.gradient).frame(height: max(6, CGFloat(count) / CGFloat(RoutinePlan.goals.count) * 110)); Text(date.formatted(.dateTime.weekday(.narrow))).font(.caption) }.frame(maxWidth: .infinity)
+        VStack { Spacer(); RoundedRectangle(cornerRadius: 6).fill(.indigo.gradient).frame(height: max(6, CGFloat(count) / CGFloat(possibleCount) * 110)); Text(date.formatted(.dateTime.weekday(.narrow))).font(.caption) }.frame(maxWidth: .infinity)
     }
 }
 
@@ -188,10 +196,8 @@ struct SettingsView: View {
                 }
                 Section("Plan") {
                     LabeledContent("Water target", value: "80 oz")
-                    LabeledContent("Workout", value: store.scheduledTime(for: RoutinePlan.goals.first { $0.id == "workout" }!).formatted(date: .omitted, time: .shortened))
-                    LabeledContent("Baby time", value: store.scheduledTime(for: RoutinePlan.goals.first { $0.id == "baby" }!).formatted(date: .omitted, time: .shortened))
-                    LabeledContent("Meals", value: "3 daily")
-                    NavigationLink("Edit activity times") { ScheduleEditorView() }
+                    LabeledContent("Activities", value: "\(store.goals.count)")
+                    NavigationLink("Manage activities") { ScheduleEditorView() }
                 }
                 Section("iCloud") {
                     Label(store.iCloudStatus, systemImage: "icloud.fill")
@@ -206,28 +212,132 @@ struct SettingsView: View {
 
 struct ScheduleEditorView: View {
     @EnvironmentObject private var store: RoutineStore
+    @State private var showingNewGoal = false
+
+    var body: some View {
+        List {
+            Section {
+                Text("Add, edit, delete, or reorder activities. Notification schedules update automatically.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Section("Activities") {
+                ForEach(store.goals) { goal in
+                    NavigationLink {
+                        GoalEditorView(goal: goal, isNew: false)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: goal.kind.icon).foregroundStyle(.indigo).frame(width: 24)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(goal.title)
+                                Text("\(store.scheduledTime(for: goal).formatted(date: .omitted, time: .shortened)) · \(goal.durationMinutes) min · \(weekdaySummary(goal.activeWeekdays))")
+                                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                            }
+                        }
+                    }
+                }
+                .onDelete(perform: store.deleteGoals)
+                .onMove(perform: store.moveGoals)
+            }
+        }
+        .navigationTitle("Activities")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                EditButton()
+                Button { showingNewGoal = true } label: { Image(systemName: "plus") }
+            }
+        }
+        .sheet(isPresented: $showingNewGoal) {
+            NavigationStack {
+                GoalEditorView(
+                    goal: RoutineGoal(
+                        id: UUID().uuidString,
+                        title: "",
+                        subtitle: "",
+                        hour: Calendar.current.component(.hour, from: .now),
+                        minute: Calendar.current.component(.minute, from: .now),
+                        durationMinutes: 10,
+                        points: 10,
+                        kind: .focus
+                    ),
+                    isNew: true
+                )
+            }
+        }
+    }
+
+    private func weekdaySummary(_ weekdays: Set<Int>) -> String {
+        if weekdays.count == 7 { return "Every day" }
+        let ordered = [(2, "Mon"), (3, "Tue"), (4, "Wed"), (5, "Thu"), (6, "Fri"), (7, "Sat"), (1, "Sun")]
+        return ordered.filter { weekdays.contains($0.0) }.map(\.1).joined(separator: ", ")
+    }
+}
+
+struct GoalEditorView: View {
+    @EnvironmentObject private var store: RoutineStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: RoutineGoal
+    let isNew: Bool
+
+    private let weekdays = [(2, "M"), (3, "T"), (4, "W"), (5, "T"), (6, "F"), (7, "S"), (1, "S")]
+
+    init(goal: RoutineGoal, isNew: Bool) {
+        _draft = State(initialValue: goal)
+        self.isNew = isNew
+    }
 
     var body: some View {
         Form {
-            Section {
-                Text("Changing a time also updates its daily notification when reminders are enabled.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
-            Section("Daily activities") {
-                ForEach(RoutinePlan.goals) { goal in
-                    DatePicker(
-                        selection: Binding(
-                            get: { store.scheduledTime(for: goal) },
-                            set: { store.updateTime($0, for: goal) }
-                        ),
-                        displayedComponents: .hourAndMinute
-                    ) {
-                        Label(goal.title, systemImage: goal.kind.icon)
+            Section("Activity") {
+                TextField("Name", text: $draft.title)
+                TextField("Helpful note (optional)", text: $draft.subtitle, axis: .vertical)
+                Picker("Category", selection: $draft.kind) {
+                    ForEach(GoalKind.allCases, id: \.self) { kind in
+                        Label(kind.displayName, systemImage: kind.icon).tag(kind)
                     }
                 }
             }
+            Section("Schedule") {
+                DatePicker("Start time", selection: Binding(
+                    get: { GoalScheduleTime(hour: draft.hour, minute: draft.minute).date },
+                    set: {
+                        let value = GoalScheduleTime(date: $0)
+                        draft.hour = value.hour
+                        draft.minute = value.minute
+                    }
+                ), displayedComponents: .hourAndMinute)
+                Stepper("Duration: \(draft.durationMinutes) minutes", value: $draft.durationMinutes, in: 5...240, step: 5)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Repeat").font(.subheadline)
+                    HStack {
+                        ForEach(weekdays, id: \.0) { weekday, label in
+                            Button {
+                                if draft.activeWeekdays.contains(weekday) { draft.activeWeekdays.remove(weekday) }
+                                else { draft.activeWeekdays.insert(weekday) }
+                            } label: {
+                                Text(label).font(.caption.bold()).frame(width: 28, height: 28)
+                                    .background(draft.activeWeekdays.contains(weekday) ? Color.indigo : Color(.tertiarySystemFill), in: Circle())
+                                    .foregroundStyle(draft.activeWeekdays.contains(weekday) ? .white : .primary)
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            Section("Game") {
+                Stepper("Reward: \(draft.points) points", value: $draft.points, in: 5...100, step: 5)
+            }
         }
-        .navigationTitle("Activity times")
+        .navigationTitle(isNew ? "New activity" : "Edit activity")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    if isNew { store.addGoal(draft) } else { store.updateGoal(draft) }
+                    dismiss()
+                }
+                .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draft.activeWeekdays.isEmpty)
+            }
+        }
     }
 }

@@ -5,11 +5,14 @@ A privacy-first SwiftUI app that turns the daily health, focus, movement, and fa
 ## Included in the MVP
 
 - Chronological daily goals based on `DAILY.md`
+- Add, rename, schedule, reorder, and delete activities
+- Per-activity weekday selection and duration
 - Points, levels, completion percentage, and streaks
 - 80 oz water tracker
 - Hourly movement and meal reminders
 - Protected 5–6 p.m. baby-time reminder
 - Seven-day history chart
+- Completion timestamps recorded at check-in
 - On-device weekly coaching based on missed goals
 - Private iCloud persistence through CloudKit, with an offline on-device cache
 - Automatic notification forwarding to a paired Apple Watch
