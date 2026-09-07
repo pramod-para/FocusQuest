@@ -17,14 +17,22 @@ struct WatchRootView: View {
                             Spacer()
                             Gauge(value: completion(day)) {
                                 Image(systemName: "checkmark")
-                            }.gaugeStyle(.accessoryCircular)
+                            }
+                            .gaugeStyle(.accessoryCircular)
+                            .tint(.indigo)
                         }
                     }
 
                     Section("Water") {
                         Button { store.addWater() } label: {
-                            Label("\(day.waterOunces) / \(day.waterTarget) oz   +8", systemImage: "drop.fill")
+                            HStack {
+                                Label("\(day.waterOunces) / \(day.waterTarget) oz", systemImage: "drop.fill")
+                                Spacer()
+                                Text("+8").font(.headline).foregroundStyle(.cyan)
+                            }
                         }
+                        .buttonStyle(.bordered)
+                        .tint(.cyan)
                     }
 
                     Section("Activities") {
@@ -40,6 +48,7 @@ struct WatchRootView: View {
                                     }
                                 }
                             }
+                            .buttonStyle(.plain)
                             .swipeActions(edge: .trailing) {
                                 if !goal.isComplete && !goal.isSkipped {
                                     Button("Skip") { store.skip(goal) }.tint(.gray)

@@ -27,6 +27,12 @@ struct TodayView: View {
                         CognitiveSummaryCard()
                     }
                     .buttonStyle(.plain)
+                    HStack {
+                        Text("Today's plan").font(.title3.bold())
+                        Spacer()
+                        Text("\(store.completedCount) of \(store.activeTodayGoals.count)")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                    }
                     LazyVStack(spacing: 10) {
                         ForEach(store.todayGoals) { goal in GoalRow(goal: goal) }
                         if store.todayGoals.isEmpty {
@@ -36,30 +42,47 @@ struct TodayView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Your day")
+            .focusQuestScreen()
+            .navigationTitle("Today")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Text(Date.now.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }
 
 private struct HeroCard: View {
     @EnvironmentObject private var store: RoutineStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var body: some View {
-        HStack(spacing: 16) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+            : AnyLayout(HStackLayout(spacing: 18))
+        layout {
             ZStack {
                 Circle().stroke(.white.opacity(0.25), lineWidth: 9)
                 Circle().trim(from: 0, to: store.completion).stroke(.white, style: StrokeStyle(lineWidth: 9, lineCap: .round)).rotationEffect(.degrees(-90))
                 Text("\(Int(store.completion * 100))%") .font(.headline.monospacedDigit())
-            }.frame(width: 82, height: 82)
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Level \(store.level)").font(.title2.bold())
-                Text("\(store.todayPoints) points today")
-                Label("\(store.streak)-day streak", systemImage: "flame.fill").font(.subheadline.bold())
+            }
+            .frame(width: 88, height: 88)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(store.completion == 1 ? "Day complete" : "Keep your momentum")
+                    .font(.title2.bold())
+                Text("Level \(store.level) · \(store.todayPoints) points")
+                Label("\(store.streak)-day streak", systemImage: "flame.fill")
+                    .font(.subheadline.bold())
             }
             Spacer()
         }
-        .foregroundStyle(.white).padding(20)
-        .background(LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 24))
+        .foregroundStyle(.white).padding(22)
+        .background(
+            LinearGradient(colors: [.indigo, .purple, Color(red: 0.36, green: 0.18, blue: 0.65)], startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+        )
+        .shadow(color: .indigo.opacity(0.22), radius: 18, y: 9)
     }
 }
 
@@ -69,21 +92,23 @@ private struct WaterCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Water", systemImage: "drop.fill").font(.headline).foregroundStyle(.cyan)
+                Label("Water", systemImage: "drop.fill").font(.headline).foregroundStyle(.blue)
                 Spacer()
                 Text("\(store.today.waterOunces) / 80 oz").font(.headline.monospacedDigit())
             }
-            ProgressView(value: min(Double(store.today.waterOunces) / 80, 1)).tint(.cyan)
+            ProgressView(value: min(Double(store.today.waterOunces) / Double(RoutinePlan.waterTarget), 1))
+                .tint(.blue)
             HStack {
                 ForEach([8, 12, 16], id: \.self) { amount in
-                    Button("+\(amount) oz") { store.addWater(amount) }.buttonStyle(.bordered).frame(maxWidth: .infinity)
+                    Button("+\(amount) oz") { store.addWater(amount) }
+                        .buttonStyle(.bordered).frame(maxWidth: .infinity)
                 }
             }
             if store.today.waterOunces > 0 {
                 Button("Reset today's water", role: .destructive) { showingResetConfirmation = true }
                     .font(.footnote)
             }
-        }.padding().background(.background, in: RoundedRectangle(cornerRadius: 20))
+        }.padding().focusQuestCard()
             .confirmationDialog("Reset today's water to 0 oz?", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
                 Button("Reset water", role: .destructive) { store.resetWater() }
                 Button("Cancel", role: .cancel) { }
@@ -93,6 +118,7 @@ private struct WaterCard: View {
 
 private struct GoalRow: View {
     @EnvironmentObject private var store: RoutineStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let goal: RoutineGoal
     private var isSkipped: Bool { store.isSkipped(goal) }
     var body: some View {
@@ -101,17 +127,18 @@ private struct GoalRow: View {
                 if isSkipped { store.unskip(goal) } else { store.toggle(goal) }
             }
         } label: {
-            HStack(spacing: 14) {
-                Image(systemName: isSkipped ? "minus.circle.fill" : (store.isComplete(goal) ? "checkmark.circle.fill" : goal.kind.icon))
-                    .font(.title2).frame(width: 34)
-                    .foregroundStyle(isSkipped ? Color(.secondaryLabel) : (store.isComplete(goal) ? Color.green : Color.indigo))
+            HStack(alignment: .top, spacing: 14) {
+                FocusQuestIconTile(
+                    symbol: isSkipped ? "minus.circle.fill" : (store.isComplete(goal) ? "checkmark.circle.fill" : goal.kind.icon),
+                    color: isSkipped ? .secondary : (store.isComplete(goal) ? .green : .indigo)
+                )
                 VStack(alignment: .leading, spacing: 3) {
                     Text(goal.title).font(.headline).strikethrough(store.isComplete(goal) || isSkipped)
                     Text(goal.subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     Text("\(goal.durationMinutes) min").font(.caption2).foregroundStyle(.tertiary)
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 3) {
+                if !dynamicTypeSize.isAccessibilitySize { Spacer() }
+                VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 3) {
                     if let completedAt = store.completedAt(goal) {
                         Text("Done \(completedAt.formatted(date: .omitted, time: .shortened))")
                             .font(.caption.bold()).foregroundStyle(.green)
@@ -123,11 +150,11 @@ private struct GoalRow: View {
                             .font(.subheadline.monospacedDigit())
                     }
                     Text("+\(goal.points)").font(.caption.bold()).foregroundStyle(.orange)
-                }
-            }.contentShape(Rectangle()).padding()
+                }.fixedSize(horizontal: false, vertical: true)
+            }.contentShape(Rectangle()).padding(16)
         }
         .buttonStyle(.plain)
-        .background(.background, in: RoundedRectangle(cornerRadius: 18))
+        .focusQuestCard()
         .contextMenu {
             if isSkipped {
                 Button("Put back today", systemImage: "arrow.uturn.backward") { store.unskip(goal) }
@@ -136,6 +163,7 @@ private struct GoalRow: View {
             }
         }
     }
+
 }
 
 struct ProgressDashboardView: View {
@@ -145,9 +173,11 @@ struct ProgressDashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
-                    StatCard(title: "Total points", value: "\(store.totalPoints)", icon: "star.fill")
-                    StatCard(title: "Current level", value: "\(store.level)", icon: "trophy.fill")
-                    StatCard(title: "Current streak", value: "\(store.streak) days", icon: "flame.fill")
+                    HStack(spacing: 10) {
+                        StatCard(title: "Points", value: "\(store.totalPoints)", icon: "star.fill", color: .orange)
+                        StatCard(title: "Level", value: "\(store.level)", icon: "trophy.fill", color: .indigo)
+                        StatCard(title: "Streak", value: "\(store.streak)d", icon: "flame.fill", color: .pink)
+                    }
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Label("Apple Health", systemImage: "heart.fill").font(.headline).foregroundStyle(.pink)
@@ -166,15 +196,19 @@ struct ProgressDashboardView: View {
                             Text("Connect Apple Health in Settings to import private daily summaries.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                    }.padding().background(.background, in: RoundedRectangle(cornerRadius: 20))
+                    }.padding().focusQuestCard()
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Last 7 days").font(.headline)
+                        HStack {
+                            Label("Last 7 days", systemImage: "chart.bar.fill").font(.headline)
+                            Spacer()
+                            Text("Activity completion").font(.caption).foregroundStyle(.secondary)
+                        }
                         HStack(alignment: .bottom, spacing: 8) {
                             ForEach((0..<7).reversed(), id: \.self) { offset in DayBar(offset: offset) }
                         }.frame(height: 150)
-                    }.padding().background(.background, in: RoundedRectangle(cornerRadius: 20))
+                    }.padding().focusQuestCard()
                 }.padding()
-            }.background(Color(.systemGroupedBackground)).navigationTitle("Progress")
+            }.focusQuestScreen().navigationTitle("Progress")
         }
     }
 
@@ -190,17 +224,33 @@ private struct HealthMetric: View {
     let icon: String
 
     var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon).foregroundStyle(.pink)
+        VStack(spacing: 6) {
+            Image(systemName: icon).foregroundStyle(.pink).font(.headline)
             Text(value).font(.headline.monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
             Text(label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-        }.frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .background(.pink.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
 private struct StatCard: View {
-    let title: String; let value: String; let icon: String
-    var body: some View { HStack { Image(systemName: icon).font(.title).foregroundStyle(.indigo); Text(title); Spacer(); Text(value).font(.title3.bold()) }.padding().background(.background, in: RoundedRectangle(cornerRadius: 18)) }
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon).foregroundStyle(color).font(.headline)
+            Text(value).font(.title2.bold()).lineLimit(1).minimumScaleFactor(0.7)
+            Text(title).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .focusQuestCard()
+    }
 }
 
 private struct DayBar: View {
@@ -217,7 +267,13 @@ private struct DayBar: View {
         return max(1, store.goals(for: date).filter { !skipped.contains($0.id) }.count)
     }
     var body: some View {
-        VStack { Spacer(); RoundedRectangle(cornerRadius: 6).fill(.indigo.gradient).frame(height: max(6, CGFloat(count) / CGFloat(possibleCount) * 110)); Text(date.formatted(.dateTime.weekday(.narrow))).font(.caption) }.frame(maxWidth: .infinity)
+        VStack(spacing: 7) {
+            Spacer()
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(offset == 0 ? AnyShapeStyle(Color.indigo.gradient) : AnyShapeStyle(Color.indigo.opacity(0.38)))
+                .frame(height: max(7, CGFloat(count) / CGFloat(possibleCount) * 110))
+            Text(date.formatted(.dateTime.weekday(.narrow))).font(.caption.weight(offset == 0 ? .bold : .regular))
+        }.frame(maxWidth: .infinity)
     }
 }
 
@@ -225,13 +281,25 @@ struct CoachView: View {
     @EnvironmentObject private var store: RoutineStore
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
-                Image(systemName: "sparkles").font(.system(size: 42)).foregroundStyle(.indigo)
-                Text("Weekly coaching").font(.largeTitle.bold())
-                Text(store.insight).font(.title3).lineSpacing(5)
-                Text("Recommendations use only completion history stored on this device. They are habit coaching, not medical advice.").font(.footnote).foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    ZStack {
+                        Circle().fill(.indigo.opacity(0.13)).frame(width: 72, height: 72)
+                        Image(systemName: "sparkles").font(.system(size: 32, weight: .semibold)).foregroundStyle(.indigo)
+                    }
+                    Text("One useful change").font(.largeTitle.bold())
+                    Text(store.insight).font(.title3).lineSpacing(6)
+                    Divider()
+                    Label("Based on your private completion history", systemImage: "lock.fill")
+                        .font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                }
+                .padding(22)
+                .focusQuestCard()
+                .padding()
                 Spacer()
-            }.padding().navigationTitle("Coach")
+            }
+            .focusQuestScreen()
+            .navigationTitle("Coach")
         }
     }
 }
@@ -309,7 +377,10 @@ struct SettingsView: View {
                     Text("History is stored in the signed-in user's private CloudKit database and cached on this device for offline use. The app developer and other users cannot access it through the app.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }.navigationTitle("Settings")
+            }
+            .scrollContentBackground(.hidden)
+            .focusQuestScreen()
+            .navigationTitle("Settings")
         }
     }
 }

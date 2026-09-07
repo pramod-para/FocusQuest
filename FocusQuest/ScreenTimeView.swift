@@ -91,7 +91,7 @@ struct ScreenTimeDashboardView: View {
                         .frame(height: 150)
                 }
                 .padding()
-                .background(.background, in: RoundedRectangle(cornerRadius: 20))
+                .focusQuestCard()
 
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Last 7 days", systemImage: "chart.bar.fill")
@@ -100,7 +100,7 @@ struct ScreenTimeDashboardView: View {
                         .frame(height: 210)
                 }
                 .padding()
-                .background(.background, in: RoundedRectangle(cornerRadius: 20))
+                .focusQuestCard()
 
                 Label("Screen Time details stay in Apple’s privacy-protected report and are not uploaded to FocusQuest or iCloud.", systemImage: "lock.shield.fill")
                     .font(.footnote)
@@ -109,7 +109,7 @@ struct ScreenTimeDashboardView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .focusQuestScreen()
     }
 
     private var todayFilter: DeviceActivityFilter {

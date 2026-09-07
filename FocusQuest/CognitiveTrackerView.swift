@@ -5,8 +5,7 @@ struct CognitiveSummaryCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "brain.head.profile.fill")
-                .font(.title).foregroundStyle(.indigo).frame(width: 36)
+            FocusQuestIconTile(symbol: "brain.head.profile.fill", color: .purple)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Cognitive check-in").font(.headline)
                 if store.today.cognitive.hasOutcomeCheckIn {
@@ -20,7 +19,7 @@ struct CognitiveSummaryCard: View {
             Spacer()
             Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.tertiary)
         }
-        .padding().background(.background, in: RoundedRectangle(cornerRadius: 20))
+        .padding().focusQuestCard()
     }
 }
 
@@ -29,6 +28,17 @@ struct CognitiveTrackerView: View {
 
     var body: some View {
         Form {
+            Section {
+                HStack(spacing: 14) {
+                    FocusQuestIconTile(symbol: "waveform.path.ecg", color: .purple)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Learn your best conditions").font(.headline)
+                        Text("A quick daily check-in reveals patterns over time.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 6)
+            }
             Section {
                 Text("Rate these at roughly the same time each evening. Consistency matters more than precision.")
                     .font(.footnote).foregroundStyle(.secondary)
@@ -74,6 +84,8 @@ struct CognitiveTrackerView: View {
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
+        .scrollContentBackground(.hidden)
+        .focusQuestScreen()
         .navigationTitle("Cognitive performance")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -126,7 +138,7 @@ private struct RatingRow: View {
                         value = rating
                     } label: {
                         Text("\(rating)").font(.subheadline.bold()).frame(maxWidth: .infinity).frame(height: 32)
-                            .background(value == rating ? Color.indigo : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+                            .background(value == rating ? Color.indigo : Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .foregroundStyle(value == rating ? Color.white : Color.primary)
                     }.buttonStyle(.plain)
                 }
