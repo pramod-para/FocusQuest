@@ -69,10 +69,10 @@ private struct HeroCard: View {
             }
             .frame(width: 88, height: 88)
             VStack(alignment: .leading, spacing: 7) {
-                Text(store.completion == 1 ? "Day complete" : "Keep your momentum")
-                    .font(.title2.bold())
+                Text(store.completion == 1 ? "Day complete" : "Build momentum")
+                    .font(.title2.bold()).lineLimit(1).minimumScaleFactor(0.8)
                 Text("Level \(store.level) · \(store.todayPoints) points")
-                Label("\(store.streak)-day streak", systemImage: "flame.fill")
+                Label(store.streak == 0 ? "Start your streak" : "\(store.streak)-day streak", systemImage: "flame.fill")
                     .font(.subheadline.bold())
             }
             Spacer()
