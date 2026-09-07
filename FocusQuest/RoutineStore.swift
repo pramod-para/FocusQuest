@@ -144,6 +144,45 @@ final class RoutineStore: ObservableObject {
         }
     }
 
+    func updateCognitiveRecord(_ value: CognitiveRecord) {
+        mutateToday { $0.cognitive = value }
+    }
+
+    var cognitivePattern: String {
+        let scored = records.values.filter { $0.cognitive.hasOutcomeCheckIn }
+        guard scored.count >= 7 else {
+            return "Complete \(7 - scored.count) more daily check-ins to begin finding your patterns."
+        }
+
+        let candidates: [(String, (DayRecord) -> Bool)] = [
+            ("7+ hours of sleep", { $0.importedSleepMinutes >= 420 }),
+            ("a recorded workout", { $0.importedWorkoutMinutes > 0 }),
+            ("30+ minutes of deep work", { $0.cognitive.deepWorkMinutes >= 30 }),
+            ("morning daylight", { $0.cognitive.morningDaylightMinutes >= 10 }),
+            ("caffeine after 2 p.m.", {
+                guard $0.cognitive.caffeineServings > 0, let last = $0.cognitive.lastCaffeineAt else { return false }
+                return Calendar.current.component(.hour, from: last) >= 14
+            }),
+            ("an energy crash after eating", { $0.cognitive.mealEnergyCrash }),
+            ("alcohol", { $0.cognitive.alcoholDrinks > 0 })
+        ]
+
+        let comparisons = candidates.compactMap { label, condition -> (String, Double)? in
+            let yes = scored.filter(condition)
+            let no = scored.filter { !condition($0) }
+            guard yes.count >= 2, no.count >= 2 else { return nil }
+            func score(_ values: [DayRecord]) -> Double {
+                values.reduce(0) { $0 + Double($1.cognitive.energyRating + $1.cognitive.focusRating) / 2 } / Double(values.count)
+            }
+            return (label, score(yes) - score(no))
+        }
+        guard let strongest = comparisons.max(by: { abs($0.1) < abs($1.1) }) else {
+            return "Keep tracking—there are not enough comparable days for a reliable personal pattern yet."
+        }
+        let direction = strongest.1 >= 0 ? "higher" : "lower"
+        return "Your energy and focus have averaged \(String(format: "%.1f", abs(strongest.1))) points \(direction) on days with \(strongest.0). This is an association, not proof of cause."
+    }
+
     func updateTime(_ date: Date, for goal: RoutineGoal) {
         var updated = goal
         let time = GoalScheduleTime(date: date)
@@ -430,6 +469,7 @@ final class RoutineStore: ObservableObject {
             record["importedWorkoutMinutes"] = value.importedWorkoutMinutes as CKRecordValue
             record["importedSleepMinutes"] = value.importedSleepMinutes as CKRecordValue
             record["healthImportedAt"] = value.healthImportedAt as CKRecordValue?
+            record["cognitiveData"] = try? JSONEncoder().encode(value.cognitive) as CKRecordValue
             record["modifiedAt"] = value.modifiedAt as CKRecordValue
             _ = try await database.save(record)
             iCloudStatus = "Synced with private iCloud"
@@ -497,6 +537,7 @@ final class RoutineStore: ObservableObject {
             importedWorkoutMinutes: (record["importedWorkoutMinutes"] as? Int64).map(Int.init) ?? 0,
             importedSleepMinutes: (record["importedSleepMinutes"] as? Int64).map(Int.init) ?? 0,
             healthImportedAt: record["healthImportedAt"] as? Date,
+            cognitive: (record["cognitiveData"] as? Data).flatMap { try? JSONDecoder().decode(CognitiveRecord.self, from: $0) } ?? CognitiveRecord(),
             modifiedAt: modifiedAt
         )
     }

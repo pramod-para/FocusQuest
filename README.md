@@ -16,6 +16,8 @@ A privacy-first SwiftUI app that turns the daily health, focus, movement, and fa
 - Seven-day history chart
 - Opt-in automatic Screen Time totals, pickups, and seven-day trends
 - Opt-in, read-only Apple Health summaries for steps, workouts, and sleep
+- Daily cognitive-performance tracking for energy, focus, stress, deep work, daylight, caffeine timing, alcohol, and meal-related crashes
+- Privacy-preserving personal pattern comparisons after enough check-ins
 - Completion timestamps recorded at check-in
 - On-device weekly coaching based on missed goals
 - Private iCloud persistence through CloudKit, with an offline on-device cache
@@ -65,6 +67,7 @@ Before App Store distribution, the Account Holder must request Apple’s Family 
 - Notifications are scheduled locally and require explicit permission.
 - Screen Time authorization is optional. Total usage, pickups, and the seven-day chart are rendered inside Apple’s sandboxed Device Activity report extension; raw app and website history is not copied into the app or uploaded to iCloud.
 - Apple Health authorization is optional and read-only. Queries run on-device; only daily step, workout-minute, and sleep-minute totals join the user's private routine history.
+- Cognitive check-ins are stored with the user's private daily record. Pattern comparisons run on-device and describe associations rather than claiming causation.
 - The Watch companion receives only today's routine summary and sends explicit check-in, skip, and water actions back to the paired iPhone.
 - No analytics SDK, advertising SDK, backend server, or third-party tracking library is included.
 - The recommendation engine runs on-device.

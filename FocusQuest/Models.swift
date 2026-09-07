@@ -171,6 +171,7 @@ struct DayRecord: Identifiable, Codable {
     var importedWorkoutMinutes: Int = 0
     var importedSleepMinutes: Int = 0
     var healthImportedAt: Date? = nil
+    var cognitive = CognitiveRecord()
     var modifiedAt: Date = .now
 
     init(
@@ -184,6 +185,7 @@ struct DayRecord: Identifiable, Codable {
         importedWorkoutMinutes: Int = 0,
         importedSleepMinutes: Int = 0,
         healthImportedAt: Date? = nil,
+        cognitive: CognitiveRecord = CognitiveRecord(),
         modifiedAt: Date = .now
     ) {
         self.id = id
@@ -196,12 +198,13 @@ struct DayRecord: Identifiable, Codable {
         self.importedWorkoutMinutes = importedWorkoutMinutes
         self.importedSleepMinutes = importedSleepMinutes
         self.healthImportedAt = healthImportedAt
+        self.cognitive = cognitive
         self.modifiedAt = modifiedAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, completedGoalIDs, completionTimes, skippedGoalIDs, waterOunces, focusSessions, importedSteps
-        case importedWorkoutMinutes, importedSleepMinutes, healthImportedAt, modifiedAt
+        case importedWorkoutMinutes, importedSleepMinutes, healthImportedAt, cognitive, modifiedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -216,8 +219,23 @@ struct DayRecord: Identifiable, Codable {
         importedWorkoutMinutes = try values.decodeIfPresent(Int.self, forKey: .importedWorkoutMinutes) ?? 0
         importedSleepMinutes = try values.decodeIfPresent(Int.self, forKey: .importedSleepMinutes) ?? 0
         healthImportedAt = try values.decodeIfPresent(Date.self, forKey: .healthImportedAt)
+        cognitive = try values.decodeIfPresent(CognitiveRecord.self, forKey: .cognitive) ?? CognitiveRecord()
         modifiedAt = try values.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? .distantPast
     }
+}
+
+struct CognitiveRecord: Codable, Equatable {
+    var energyRating: Int = 0
+    var focusRating: Int = 0
+    var stressRating: Int = 0
+    var deepWorkMinutes: Int = 0
+    var morningDaylightMinutes: Int = 0
+    var caffeineServings: Int = 0
+    var lastCaffeineAt: Date? = nil
+    var alcoholDrinks: Int = 0
+    var mealEnergyCrash: Bool = false
+
+    var hasOutcomeCheckIn: Bool { energyRating > 0 && focusRating > 0 && stressRating > 0 }
 }
 
 enum RoutinePlan {

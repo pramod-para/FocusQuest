@@ -21,6 +21,12 @@ struct TodayView: View {
                 VStack(spacing: 18) {
                     HeroCard()
                     WaterCard()
+                    NavigationLink {
+                        CognitiveTrackerView()
+                    } label: {
+                        CognitiveSummaryCard()
+                    }
+                    .buttonStyle(.plain)
                     LazyVStack(spacing: 10) {
                         ForEach(store.todayGoals) { goal in GoalRow(goal: goal) }
                         if store.todayGoals.isEmpty {
